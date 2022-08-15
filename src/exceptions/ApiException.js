@@ -1,15 +1,21 @@
-const { Logger } = require('sequelize/lib/utils/logger');
+const exceptionCodes = require('./validatorExceptionCodes');
 
 class ApiException extends Error {
-  constructor(statusCode, fields, code) {
+  constructor(statusCode, fields, code, options = {}) {
     super();
 
     const errorFields = fields.reduce((prevFields, field) => {
       return { ...prevFields, [field]: code };
     }, {});
 
-    const errorCode =
-      fields.length === 1 ? `${fields[0].toUpperCase()}_${code}` : code;
+    let errorCode;
+
+    if (options.customError) {
+      errorCode = code;
+    } else {
+      errorCode =
+        fields.length === 1 ? `${fields[0].toUpperCase()}_${code}` : code;
+    }
 
     this.statusCode = statusCode;
     this.error = {
@@ -18,20 +24,20 @@ class ApiException extends Error {
     };
   }
 
-  static BadRequest(fields, code) {
-    return new ApiException(400, fields, code);
+  static BadRequest(fields, code, options) {
+    return new ApiException(400, fields, code, options);
   }
 
-  static Unauthorized() {
-    return new ApiException(401);
+  static Unauthorized(fields, code) {
+    return new ApiException(401, fields, code);
   }
 
-  static Forbidden() {
-    return new ApiException(403);
+  static NotFound(options) {
+    return new ApiException(404, ['id'], exceptionCodes.notFound, options);
   }
 
-  static NotFound() {
-    return new ApiException(404);
+  static Conflict() {
+    return new ApiException(409, ['email'], exceptionCodes.notUnique);
   }
 }
 

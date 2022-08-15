@@ -3,7 +3,9 @@ const exceptionCodes = {
   notUnique: 'NOT_UNIQUE',
   notMatch: 'NOT_MATCH',
   notStrong: 'NOT_STRONG_ENOUGH',
-  authFailed: 'AUTHENTICATION_FAILED'
+  notFound: 'NOT_FOUND',
+  authFailed: 'AUTHENTICATION_FAILED',
+  required: 'REQUIRED'
 };
 
 module.exports = exceptionCodes;

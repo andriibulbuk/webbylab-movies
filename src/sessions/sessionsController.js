@@ -1,9 +1,9 @@
 const sessionService = require('./sessionsService');
 
 async function createSession(req, res) {
-  const response = await sessionService.create(req.body);
+  const token = await sessionService.create(req.body);
 
-  res.send(response);
+  res.send({ status: 1, token });
 }
 
 const sessionsController = { createSession };

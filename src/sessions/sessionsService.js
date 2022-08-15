@@ -3,7 +3,6 @@ const usersService = require('../users/usersService');
 const ApiException = require('../exceptions/ApiException');
 const exceptionCodes = require('../exceptions/validatorExceptionCodes');
 const bcrypt = require('bcrypt');
-const validator = require('validator');
 
 function validateDto(createSessionDto) {
   if (typeof createSessionDto.email !== 'string') {
@@ -28,7 +27,7 @@ async function create(createSessionDto) {
 
   const isPassportValid = await bcrypt.compare(
     createSessionDto.password,
-    userData.dataValues.password
+    userData.password
   );
 
   if (!isPassportValid) {
@@ -38,14 +37,10 @@ async function create(createSessionDto) {
     );
   }
 
-  const normalizedUserData = await usersService.normalizeUserData(
-    userData.dataValues
-  );
-
-  return {
-    status: 1,
-    token: jwtService.generateAccessToken(normalizedUserData)
-  };
+  return jwtService.generateAccessToken({
+    ...userData.get(),
+    password: undefined
+  });
 }
 
 module.exports = { create };

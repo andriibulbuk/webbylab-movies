@@ -5,58 +5,53 @@ const validator = require('validator');
 const exceptionCodes = require('../exceptions/validatorExceptionCodes');
 const bcrypt = require('bcrypt');
 
-function normalizeUserData(user) {
-  const { password, ...userData } = user;
-
-  return userData;
-}
-
 async function getByEmail(email) {
   return await User.findOne({ where: { email: email } });
 }
 
-async function validateDto(createUserDto) {
+async function validateDto(createDto) {
   if (
-    typeof createUserDto.email !== 'string' ||
-    !validator.isEmail(createUserDto.email)
+    typeof createDto.email !== 'string' ||
+    !validator.isEmail(createDto.email)
   ) {
     throw ApiException.BadRequest(['email'], exceptionCodes.notValid);
   }
 
-  if (typeof createUserDto.name !== 'string') {
+  if (typeof createDto.name !== 'string') {
     throw ApiException.BadRequest(['name'], exceptionCodes.notValid);
   }
 
   if (
-    typeof createUserDto.password !== 'string' ||
-    !validator.isStrongPassword(createUserDto.password, { minLength: 7 })
+    typeof createDto.password !== 'string' ||
+    !validator.isStrongPassword(createDto.password, { minLength: 7 })
   ) {
     throw ApiException.BadRequest(['password'], exceptionCodes.notStrong);
   }
+}
 
-  const user = await getByEmail(createUserDto.email);
+async function create(createDto) {
+  await validateDto(createDto);
+
+  const user = await getByEmail(createDto.email);
 
   if (user) {
-    throw ApiException.BadRequest(['email'], exceptionCodes.notUnique);
+    throw ApiException.Conflict();
   }
 
-  if (createUserDto.password !== createUserDto.confirmPassword) {
+  if (createDto.password !== createDto.confirmPassword) {
     throw ApiException.BadRequest(['confirmPassword'], exceptionCodes.notMatch);
   }
-}
 
-async function create(createUserDto) {
-  await validateDto(createUserDto);
-
-  const hash = await bcrypt.hash(createUserDto.password, 10);
-  const { dataValues } = await User.create({
-    ...createUserDto,
+  const hash = await bcrypt.hash(createDto.password, 10);
+  const createdUser = await User.create({
+    ...createDto,
     password: hash
   });
-  const normalizedUserData = normalizeUserData(dataValues);
-  const accessToken = jwtService.generateAccessToken(normalizedUserData);
 
-  return { status: 1, token: accessToken };
+  return jwtService.generateAccessToken({
+    ...createdUser.get(),
+    password: undefined
+  });
 }
 
-module.exports = { create, getByEmail, normalizeUserData };
+module.exports = { create, getByEmail };

@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const fileUpload = require('express-fileupload');
 const sequelize = require('./utils/db');
 const mainRouter = require('./mainRouter');
 const errorMiddleware = require('./middlewares/errorMiddleware');
@@ -21,6 +22,11 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(
+  fileUpload({
+    limits: { fileSize: 50 * 1024 * 1024 }
+  })
+);
 app.use('/api/v1', mainRouter);
 app.use(errorMiddleware);
 
