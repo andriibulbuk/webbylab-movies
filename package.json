@@ -2,9 +2,9 @@
   "name": "webbylab-movies",
   "version": "1.0.0",
   "description": "",
-  "main": "src/index.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "nodemon src/index.js"
+    "start": "nodemon src/server.js"
   },
   "author": "Andrii Bulbuk",
   "license": "ISC",
