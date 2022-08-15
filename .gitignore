@@ -5,5 +5,8 @@ node_modules
 .idea
 .vscode
 
-#sqlite
+# sqlite
 database.sqlite
+
+# env variables
+.env
