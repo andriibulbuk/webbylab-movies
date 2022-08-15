@@ -30,3 +30,14 @@ docker run -p 5000:8080 webbylab-test-task
 ```
 5. The app is ready to handle requests
 
+## Example of request:
+```bash
+curl --header "Content-Type: application/json" \
+  --request POST \
+  --data '{
+    "email": "petro@gmail.com",
+    "name": "Petrov Petro",
+    "password": "StrongPassword@!1",
+    "confirmPassword": "StrongPassword@!1"
+}' http://localhost:5000/api/v1/users
+```
