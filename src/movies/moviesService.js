@@ -77,10 +77,7 @@ function parseOne(movie) {
 
 function parseMany(data) {
   return data
-    .replace(/Title: /g, '')
-    .replace(/Release Year: /g, '')
-    .replace(/Format: /g, '')
-    .replace(/Stars: /g, '')
+    .replace(/Title: |Release Year: |Format: |Starts: /g, '')
     .trim()
     .split('\n\n')
     .map((movie) => parseOne(movie));
@@ -222,8 +219,15 @@ async function getMany(queryParams) {
   return movies;
 }
 
-async function setManyFromFile(moviesFile) {
-  const movies = parseMany(moviesFile.data.toString('utf8'));
+async function setManyFromFile(files) {
+  if (!files || !files.movies) {
+    throw ApiException.BadRequest(
+      ['movies'],
+      `FILE_${exceptionCodes.notFound}`
+    );
+  }
+
+  const movies = parseMany(files.movies.data.toString('utf8'));
   const moviesCreation = movies.map((movie) => create(movie));
 
   const imported = await Promise.allSettled(moviesCreation);

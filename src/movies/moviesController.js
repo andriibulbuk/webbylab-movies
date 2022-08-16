@@ -38,7 +38,7 @@ async function getMany(req, res) {
 
 async function setManyFromFile(req, res) {
   const [imported, totalLength] = await moviesService.setManyFromFile(
-    req.files.movies
+    req.files
   );
 
   res.send({
