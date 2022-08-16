@@ -5,7 +5,9 @@ const exceptionCodes = {
   notStrong: 'NOT_STRONG_ENOUGH',
   notFound: 'NOT_FOUND',
   authFailed: 'AUTHENTICATION_FAILED',
-  required: 'REQUIRED'
+  required: 'REQUIRED',
+  forbiddenFileExtension: 'FORBIDDEN_FILE_EXTENSION',
+  parsingError: 'PARSING_ERROR'
 };
 
 module.exports = exceptionCodes;

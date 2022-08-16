@@ -3,13 +3,35 @@ const { Op } = require('sequelize');
 const ApiException = require('../exceptions/ApiException');
 const exceptionCodes = require('../exceptions/validatorExceptionCodes');
 
-function validateTitle(title) {
-  if (typeof title !== 'string') {
-    throw ApiException.BadRequest(['title'], exceptionCodes.notValid);
+function checkForForbiddenSymbols(string) {
+  const FORBIDDEN_CHARS_EXP = /[^\sa-zA-Zа-яА-ЯіІїЇґҐєЄ,-]/g;
+
+  return FORBIDDEN_CHARS_EXP.test(string);
+}
+
+function removeRedundantSpaces(string) {
+  const REDUNDANT_SPACES_EXP = /\s{2,}/g;
+
+  return string.trim().replace(REDUNDANT_SPACES_EXP, '');
+}
+
+function normalizeActorNames(actorNames) {
+  return actorNames.map((actor) => removeRedundantSpaces(actor));
+}
+
+function validateDtoTitle(title) {
+  const MIN_TITLE_LENGTH = 2;
+
+  if (
+    typeof title !== 'string' ||
+    removeRedundantSpaces(title).length < MIN_TITLE_LENGTH ||
+    checkForForbiddenSymbols(title)
+  ) {
+    throw ApiException.BadRequest(['title'], exceptionCodes.notValid, title);
   }
 }
 
-function validateYear(year) {
+function validateDtoYear(year) {
   const FIRST_MOVIE_YEAR = 1888;
   const MAX_AVAILABLE_YEAR = 2050;
 
@@ -18,33 +40,45 @@ function validateYear(year) {
     year < FIRST_MOVIE_YEAR ||
     year > MAX_AVAILABLE_YEAR
   ) {
-    throw ApiException.BadRequest(['year'], exceptionCodes.notValid);
+    throw ApiException.BadRequest(['year'], exceptionCodes.notValid, year);
   }
 }
 
-function validateFormat(format) {
-  if (typeof format !== 'string') {
-    throw ApiException.BadRequest(['format'], exceptionCodes.notValid);
+function validateDtoFormat(format) {
+  const formatsEnum = {
+    VHS: true,
+    DVD: true,
+    'Blu-Ray': true
+  };
+
+  if (typeof format !== 'string' || !formatsEnum[format]) {
+    throw ApiException.BadRequest(['format'], exceptionCodes.notValid, format);
   }
 }
 
-function validateActors(actors) {
+function validateDtoActors(actors) {
+  const MIN_NAME_LENGTH = 5;
+
   if (!Array.isArray(actors)) {
     throw ApiException.BadRequest(['actors'], exceptionCodes.notValid);
   }
 
-  const unexpectedActors = actors.filter((actor) => typeof actor !== 'string');
-
-  if (unexpectedActors.length) {
-    throw ApiException.BadRequest(['actors'], exceptionCodes.notValid);
-  }
+  actors.forEach((actor) => {
+    if (
+      typeof actor !== 'string' ||
+      checkForForbiddenSymbols(actor) ||
+      removeRedundantSpaces(actor).length < MIN_NAME_LENGTH
+    ) {
+      throw ApiException.BadRequest(['actors'], exceptionCodes.notValid);
+    }
+  });
 }
 
 function validateCreateDto({ title, year, format, actors }) {
-  validateTitle(title);
-  validateYear(year);
-  validateFormat(format);
-  validateActors(actors);
+  validateDtoTitle(title);
+  validateDtoYear(year);
+  validateDtoFormat(format);
+  validateDtoActors(actors);
 }
 
 function validateUpdateDto({ title, year, format, actors }) {
@@ -53,19 +87,19 @@ function validateUpdateDto({ title, year, format, actors }) {
   }
 
   if (title) {
-    validateTitle(title);
+    validateDtoTitle(title);
   }
 
   if (year) {
-    validateYear(year);
+    validateDtoYear(year);
   }
 
   if (format) {
-    validateFormat(format);
+    validateDtoFormat(format);
   }
 
   if (actors) {
-    validateActors(actors);
+    validateDtoActors(actors);
   }
 }
 
@@ -76,11 +110,15 @@ function parseOne(movie) {
 }
 
 function parseMany(data) {
-  return data
-    .replace(/Title: |Release Year: |Format: |Starts: /g, '')
-    .trim()
-    .split('\n\n')
-    .map((movie) => parseOne(movie));
+  try {
+    return data
+      .replace(/Title: |Release Year: |Format: |Starts: /g, '')
+      .trim()
+      .split('\n\n')
+      .map((movie) => parseOne(movie));
+  } catch (error) {
+    throw ApiException.BadRequest(['movies'], exceptionCodes.parsingError);
+  }
 }
 
 async function getActors(actorNames) {
@@ -118,13 +156,18 @@ async function create(createDto, options = {}) {
   });
 
   if (isMovieExists) {
-    throw ApiException.BadRequest(['title'], exceptionCodes.notUnique);
+    throw ApiException.BadRequest(
+      ['title'],
+      `${exceptionCodes.notUnique}`,
+      removeRedundantSpaces(createDto.title)
+    );
   }
 
-  const actors = await getActors(createDto.actors);
+  const normalizedActorNames = normalizeActorNames(createDto.actors);
+  const actors = await getActors(normalizedActorNames);
 
   const movie = await Movie.create({
-    title: createDto.title,
+    title: removeRedundantSpaces(createDto.title),
     year: createDto.year,
     format: createDto.format
   });
@@ -178,16 +221,17 @@ async function getOneById(id) {
   const movie = await getById(id);
 
   if (!movie) {
-    throw ApiException.NotFound({ customError: true });
+    throw ApiException.NotFound(+id);
   }
 
   return movie;
 }
 
 async function getMany(queryParams) {
-  const movies = await Movie.findAll({
-    limit: queryParams.limit || 20,
-    offset: queryParams.offset || 0,
+  const response = await Movie.findAll({
+    limit: +queryParams.limit || 20,
+    offset: +queryParams.offset || 0,
+    group: 'Movie.id',
     where: {
       title: {
         [Op.substring]: queryParams.title || ''
@@ -216,7 +260,11 @@ async function getMany(queryParams) {
     ]
   });
 
-  return movies;
+  if (queryParams.sort === 'title') {
+    response.sort((a, b) => a.title.localeCompare(b.title));
+  }
+
+  return response;
 }
 
 async function setManyFromFile(files) {
@@ -227,15 +275,29 @@ async function setManyFromFile(files) {
     );
   }
 
+  if (files.movies.mimetype !== 'text/plain') {
+    throw ApiException.BadRequest(
+      ['movies'],
+      `FILE_${exceptionCodes.forbiddenFileExtension}`
+    );
+  }
+
   const movies = parseMany(files.movies.data.toString('utf8'));
   const moviesCreation = movies.map((movie) => create(movie));
 
   const imported = await Promise.allSettled(moviesCreation);
-  const importedSuccessfully = imported
-    .filter(({ status }) => status === 'fulfilled')
-    .map(({ value }) => ({ ...value }));
+  const importedSuccessfully = [];
+  const notImported = [];
 
-  return [importedSuccessfully, imported.length];
+  imported.forEach((response) => {
+    if (response.status === 'fulfilled') {
+      importedSuccessfully.push(response.value);
+    } else {
+      notImported.push(response.reason.error);
+    }
+  });
+
+  return [importedSuccessfully, imported.length, notImported];
 }
 
 module.exports = {

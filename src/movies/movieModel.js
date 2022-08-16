@@ -17,7 +17,11 @@ Movie.init(
       allowNull: false
     }
   },
-  { sequelize, tableName: 'movies', modelName: 'Movie' }
+  {
+    sequelize,
+    tableName: 'movies',
+    modelName: 'Movie'
+  }
 );
 
 class Actor extends Model {}

@@ -1,8 +1,6 @@
 const ApiException = require('../exceptions/ApiException');
 
 function errorMiddleware(error, req, res, next) {
-  console.log(error);
-
   if (error instanceof ApiException) {
     const { statusCode, error: customError } = error;
 
