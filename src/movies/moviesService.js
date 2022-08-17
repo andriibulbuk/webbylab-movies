@@ -24,8 +24,7 @@ function validateDtoTitle(title) {
 
   if (
     typeof title !== 'string' ||
-    removeRedundantSpaces(title).length < MIN_TITLE_LENGTH ||
-    checkForForbiddenSymbols(title)
+    removeRedundantSpaces(title).length < MIN_TITLE_LENGTH
   ) {
     throw ApiException.BadRequest(['title'], exceptionCodes.notValid, title);
   }
@@ -69,7 +68,11 @@ function validateDtoActors(actors) {
       checkForForbiddenSymbols(actor) ||
       removeRedundantSpaces(actor).length < MIN_NAME_LENGTH
     ) {
-      throw ApiException.BadRequest(['actors'], exceptionCodes.notValid);
+      throw ApiException.BadRequest(
+        ['actors'],
+        exceptionCodes.notValid,
+        actors
+      );
     }
   });
 }
@@ -112,7 +115,7 @@ function parseOne(movie) {
 function parseMany(data) {
   try {
     return data
-      .replace(/Title: |Release Year: |Format: |Starts: /g, '')
+      .replace(/Title: |Release Year: |Format: |Stars: /g, '')
       .trim()
       .split('\n\n')
       .map((movie) => parseOne(movie));
