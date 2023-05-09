@@ -36,7 +36,7 @@ curl --header "Content-Type: application/json" \
   --request POST \
   --data '{
     "email": "petro@gmail.com",
-    "name": "Petrov Petro",
+    "name": "Petrenko Petro",
     "password": "StrongPassword@!1",
     "confirmPassword": "StrongPassword@!1"
 }' http://localhost:5000/api/v1/users
